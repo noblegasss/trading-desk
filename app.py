@@ -53,9 +53,20 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
             data.columns = data.columns.get_level_values(0)
         if 'Datetime' in data.columns:
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
-        # Convert to Eastern timezone
-        data['Date'] = pd.to_datetime(data['Date']).dt.tz_convert(eastern_tz)
+        
+        # Convert to datetime
+        data['Date'] = pd.to_datetime(data['Date'])
+        if interval == '1m':
+            # If timestamps have no timezone, localize them to UTC
+            if data['Date'].dt.tz is None:
+                data['Date'] = data['Date'].dt.tz_localize('UTC')
+
+            # Convert to Eastern timezone
+            data['Date'] = data['Date'].dt.tz_convert(eastern_tz)
+
+ 
     return data
+
 
 def add_moving_average(df, window, col_name_prefix="MA"):
     df[f"{col_name_prefix}_{window}"] = df['Close'].rolling(window=window, min_periods=1).mean()
@@ -459,6 +470,10 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
                         y=1.1,
                         yanchor='top'
                     ),
+                    rangebreaks=[
+                        dict(bounds=["sat", "mon"]),  # Hide weekends
+                        dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
+                    ],
                     type='date'
                 ),
                 yaxis=dict(title='Price', domain=[0.3, 1]),
