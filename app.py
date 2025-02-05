@@ -224,6 +224,8 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             df = add_moving_average(df, short_window, "Short_MA")
             df = add_moving_average(df, long_window, "Long_MA")
 
+            print(df.head())
+
             # Get the current time and current stock price from the latest data point
             current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             current_price = df['Close'].iloc[-1]
