@@ -45,9 +45,6 @@ def adjust_to_trading_day(date_str):
         dt -= datetime.timedelta(days=2)
     return dt
 
-# --------------------------------------------------------------
-# Updated fetch_stock_data with 'prepost' param from the toggle
-# --------------------------------------------------------------
 def fetch_stock_data(ticker, start_date, end_date, interval='1d', prepost=True):
     start_dt = pd.to_datetime(start_date)
     end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1)
@@ -305,7 +302,7 @@ app.layout = html.Div(
                             ]
                         ),
 
-                        # (NEW) Toggle for pre/post market
+                        # Toggle for pre/post market
                         html.Div(
                             [
                                 html.Label(
@@ -322,6 +319,30 @@ app.layout = html.Div(
                                     value=True,  # default: pre/post included
                                     color="#1f77b4",
                                     labelPosition='bottom'
+                                )
+                            ],
+                            style={'marginBottom': '1.5rem'}
+                        ),
+
+                        # (NEW) Radio items for Chart Type
+                        html.Div(
+                            [
+                                html.Label(
+                                    "Chart Type",
+                                    style={
+                                        'display': 'block',
+                                        'marginBottom': '0.5rem',
+                                        'fontWeight': '600'
+                                    }
+                                ),
+                                dcc.RadioItems(
+                                    id='chart-type',
+                                    options=[
+                                        {'label': 'Line', 'value': 'line'},
+                                        {'label': 'Candlestick', 'value': 'candle'},
+                                    ],
+                                    value='line',  # default
+                                    style={'marginLeft': '0.5rem'}
                                 )
                             ],
                             style={'marginBottom': '1.5rem'}
@@ -525,7 +546,8 @@ def update_label_colors(theme):
     [
         Input('submit-button', 'n_clicks'),
         Input('refresh-interval-component', 'n_intervals'),
-        Input('prepost-toggle', 'value')  # Our new toggle for pre/post
+        Input('prepost-toggle', 'value'),   # Toggle for pre/post market
+        Input('chart-type', 'value')        # NEW: input for line/candle
     ],
     [
         State('ticker-input', 'value'),
@@ -535,7 +557,8 @@ def update_label_colors(theme):
         State('long-ma', 'value')
     ]
 )
-def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_date, short_ma, long_ma):
+def update_dashboard(n_clicks, n_intervals, prepost, chart_type, 
+                     tickers, start_date, end_date, short_ma, long_ma):
     if not tickers:
         return [], []
     
@@ -581,14 +604,37 @@ def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_da
             current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
             current_price = df['Close'].iloc[-1]
             
-            price_chart = go.Scatter(
-                x=df[date_col],
-                y=df['Close'],
-                mode='lines',
-                name='Price',
-                line=dict(color='#1f77b4', width=1.5)
-            )
+            # ---------------------------
+            # Build the primary chart(s)
+            # ---------------------------
+            chart_data = []
             
+            if chart_type == 'candle':
+                # Candlestick chart
+                candlestick = go.Candlestick(
+                    x=df[date_col],
+                    open=df['Open'],
+                    high=df['High'],
+                    low=df['Low'],
+                    close=df['Close'],
+                    name='Price',
+                    increasing_line_color='#1f77b4',
+                    decreasing_line_color='#ff3333',
+                    showlegend=True
+                )
+                chart_data.append(candlestick)
+            else:
+                # Line chart
+                price_chart = go.Scatter(
+                    x=df[date_col],
+                    y=df['Close'],
+                    mode='lines',
+                    name='Price',
+                    line=dict(color='#1f77b4', width=1.5)
+                )
+                chart_data.append(price_chart)
+
+            # Always include MAs as lines
             ma_short = go.Scatter(
                 x=df[date_col],
                 y=df[f'Short_MA_{s_window}'],
@@ -604,7 +650,10 @@ def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_da
                 name=f'MA {l_window}',
                 line=dict(color='#2ca02c', dash='dot')
             )
+
+            chart_data.extend([ma_short, ma_long])
             
+            # Volume on secondary axis
             volume_bars = go.Bar(
                 x=df[date_col],
                 y=df['Volume'],
@@ -612,8 +661,9 @@ def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_da
                 marker_color='#a1a1a1',
                 yaxis='y2'
             )
+            chart_data.append(volume_bars)
 
-            fig = go.Figure(data=[price_chart, ma_short, ma_long, volume_bars])
+            fig = go.Figure(data=chart_data)
             
             fig.update_layout(
                 title=f'{ticker} Stock Analysis<br><sub>Last Updated: {current_time} | Current Price: ${current_price:.2f}</sub>',
@@ -652,7 +702,9 @@ def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_da
             
             stock_charts.append(dcc.Graph(figure=fig))
             
+            # ---------------------------
             # Stock info
+            # ---------------------------
             stock = yf.Ticker(ticker)
             info = stock.info
             info_items = [
@@ -672,7 +724,7 @@ def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_da
             
             info_card = html.Div(
                 style={
-                    'backgroundColor': '#ffffff',  # you could also read from theme store if you want dynamic
+                    'backgroundColor': '#ffffff',
                     'borderRadius': '10px',
                     'padding': '1.5rem',
                     'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
