@@ -296,7 +296,7 @@ app.layout = html.Div(
                                         ),
                                         daq.ToggleSwitch(
                                             id='auto-refresh-toggle',
-                                            value=True,
+                                            value=False,
                                             color="#1f77b4",
                                             labelPosition='bottom'
                                         )
