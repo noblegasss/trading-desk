@@ -802,7 +802,8 @@ def update_sector_analysis(n_clicks, n_intervals):
         'Utilities': 'XLU',
         'Real Estate': 'XLRE',
         'Consumer Staples': 'XLP',
-        'Materials': 'XLB'
+        'Materials': 'XLB',
+        'Communication Services': 'XLC'
     }
     
     # Dictionaries to hold computed performance metrics.
@@ -995,7 +996,8 @@ def update_sector_analysis(n_clicks, n_intervals):
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50)
+            margin=dict(t=50, b=50, l=50, r=50),
+            height = 600
         )
     else:
         one_month_heatmap = go.Figure()
@@ -1019,7 +1021,8 @@ def update_sector_analysis(n_clicks, n_intervals):
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50)
+            margin=dict(t=50, b=50, l=50, r=50),
+            height = 600
         )
     else:
         one_year_heatmap = go.Figure()
