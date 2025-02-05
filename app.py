@@ -140,7 +140,9 @@ app.layout = html.Div(
                     children=[
                         # THEME DROPDOWN
                         html.Div([
-                            html.Label("Choose a Theme:", style={'fontWeight': '600'}),
+                            html.Label("Choose a Theme:", 
+                                       id = 'theme-label',
+                                       style={'fontWeight': '600'}),
                             dcc.Dropdown(
                                 id='theme-dropdown',
                                 options=[
