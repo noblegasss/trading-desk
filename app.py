@@ -986,14 +986,15 @@ def update_sector_analysis(n_clicks, n_intervals):
             zmin=-1, zmax=1,
             text=one_month_corr.round(2).values,
             texttemplate="%{text:.2f}",
-            colorbar=dict(title="Corr")
+            showscale=False  # Remove the colorbar
         ))
         one_month_heatmap.update_layout(
             title="1 Month Price Correlation",
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50)
+            margin=dict(t=50, b=50, l=50, r=50),
+            height=500   # Increased height
         )
     else:
         one_month_heatmap = go.Figure()
@@ -1010,14 +1011,15 @@ def update_sector_analysis(n_clicks, n_intervals):
             zmin=-1, zmax=1,
             text=one_year_corr.round(2).values,
             texttemplate="%{text:.2f}",
-            colorbar=dict(title="Corr")
+            showscale=False  # Remove the colorbar
         ))
         one_year_heatmap.update_layout(
             title="1 Year Price Correlation",
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50)
+            margin=dict(t=50, b=50, l=50, r=50),
+            height=500   # Increased height
         )
     else:
         one_year_heatmap = go.Figure()
