@@ -302,4 +302,4 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
     return stock_charts, stock_info_html
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, host='0.0.0.0', port=8080)
