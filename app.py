@@ -6,14 +6,14 @@ import pandas as pd
 import yfinance as yf
 import datetime
 import pytz
-import plotly.io as pio
 
-pio.renderers.default = 'browser'
 
 app = dash.Dash(__name__)
 server = app.server
 app.title = "Real-Time Stock Dashboard"
+
 eastern_tz = pytz.timezone('US/Eastern')
+
 
 def adjust_to_trading_day(date_str):
     dt = pd.to_datetime(date_str).date()
@@ -25,8 +25,10 @@ def adjust_to_trading_day(date_str):
     return dt
 
 def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
-    start_dt = pd.to_datetime(start_date)
-    end_dt = pd.to_datetime(end_date)
+    start_dt = pd.to_datetime(start_date, utc=True)
+    start_dt = start_dt.tz_convert('US/Eastern')
+    end_dt = pd.to_datetime(end_date, utc=True)
+    end_dt = end_dt.tz_convert('US/Eastern')
     # Increase end date by one day to include the final day
     end_dt += pd.Timedelta(days=1)
     
@@ -217,7 +219,8 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         df = fetch_stock_data(ticker, start_dt, end_dt, interval)
         if df.empty:
             continue
-        
+        df.columns = df.columns.get_level_values(1)
+
         # Use the appropriate date column
         date_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
         
