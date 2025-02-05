@@ -200,7 +200,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         xaxis_format = '%H:%M'  # Only time displayed
         xaxis_title = 'Time'
     else:
-        interval = '10m'
+        interval = '15m'
         xaxis_format = '%Y-%m-%d'
         xaxis_title = 'Date'
 
