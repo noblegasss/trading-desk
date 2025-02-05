@@ -223,6 +223,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         long_window = int(long_ma) if long_ma else 50
         df = add_moving_average(df, short_window, "Short_MA")
         df = add_moving_average(df, long_window, "Long_MA")
+        df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
         print(df.head())
 
@@ -233,21 +234,21 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         color = colors[i % len(colors)]
         price_trace = go.Scatter(
             x=df[date_col],
-            y=df['Close'].astype(float),
+            y=df['Close'],
             mode='lines',
             name=f"{ticker} Price",
             line=dict(color=color)
         )
         short_ma_trace = go.Scatter(
             x=df[date_col],
-            y=df[f"Short_MA_{short_window}"].astype(float),
+            y=df[f"Short_MA_{short_window}"],
             mode='lines',
             name=f"{ticker} Short MA ({short_window})",
             line=dict(color=color, dash='dash')
         )
         long_ma_trace = go.Scatter(
             x=df[date_col],
-            y=df[f"Long_MA_{long_window}"].astype(float),
+            y=df[f"Long_MA_{long_window}"],
             mode='lines',
             name=f"{ticker} Long MA ({long_window})",
             line=dict(color=color, dash='dot')
