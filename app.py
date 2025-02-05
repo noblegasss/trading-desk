@@ -37,11 +37,15 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
         start=start_dt.strftime('%Y-%m-%d'), 
         end=end_dt.strftime('%Y-%m-%d'), 
         interval=interval,
-        prepost=True  # Fetch both pre and post market data
+        prepost=True,  # Fetch both pre and post market data
+        group_by='column'  # Return flat columns instead of a MultiIndex
     )
     
     if not data.empty:
         data.reset_index(inplace=True)
+        # If the columns still form a MultiIndex, flatten them
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(1)
         # Rename 'Datetime' to 'Date' for consistency
         if 'Datetime' in data.columns:
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
@@ -219,7 +223,6 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         df = fetch_stock_data(ticker, start_dt, end_dt, interval)
         if df.empty:
             continue
-        df.columns = df.columns.get_level_values(1)
 
         # Use the appropriate date column
         date_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
