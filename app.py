@@ -12,14 +12,26 @@ app = dash.Dash(__name__)
 server = app.server
 app.title = "Real-Time Stock Dashboard"
 
-# Custom color scheme
-colors = {
-    'background': '#f4f6fa',
-    'header': '#1f77b4',
-    'card-background': 'white',
-    'text': '#2c3e50',
-    'positive': '#27ae60',
-    'negative': '#e74c3c'
+# ------------------------------
+# Multiple Themes
+# ------------------------------
+THEMES = {
+    'light': {
+        'background': '#f4f6fa',
+        'header': '#1f77b4',
+        'card-background': 'white',
+        'text': '#2c3e50',
+        'positive': '#27ae60',
+        'negative': '#e74c3c'
+    },
+    'dark': {
+        'background': '#2B2B2B',      
+        'header': '#3D3D3D',          
+        'card-background': '#444444', 
+        'text': '#FAFAFA',            
+        'positive': '#27ae60',
+        'negative': '#e74c3c'
+    }
 }
 
 eastern_tz = pytz.timezone('US/Eastern')
@@ -27,15 +39,16 @@ eastern_tz = pytz.timezone('US/Eastern')
 def adjust_to_trading_day(date_str):
     dt = pd.to_datetime(date_str).date()
     weekday = dt.weekday()
-    # If weekend, adjust to previous Friday
     if weekday == 5:  # Saturday
         dt -= datetime.timedelta(days=1)
     elif weekday == 6:  # Sunday
         dt -= datetime.timedelta(days=2)
     return dt
 
-def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
-    eastern_tz = pytz.timezone('US/Eastern')
+# --------------------------------------------------------------
+# Updated fetch_stock_data with 'prepost' param from the toggle
+# --------------------------------------------------------------
+def fetch_stock_data(ticker, start_date, end_date, interval='1d', prepost=True):
     start_dt = pd.to_datetime(start_date)
     end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1)
 
@@ -44,7 +57,7 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
         start=start_dt.strftime('%Y-%m-%d'),
         end=end_dt.strftime('%Y-%m-%d'),
         interval=interval,
-        prepost=True
+        prepost=prepost  # <--- controlled by toggle
     )
     
     if not data.empty:
@@ -54,30 +67,30 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
         if 'Datetime' in data.columns:
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
         
-        # Convert to datetime
         data['Date'] = pd.to_datetime(data['Date'])
+        # If intraday data (like 1m) is naive, localize to UTC, then convert to Eastern
         if interval == '1m':
-            # If timestamps have no timezone, localize them to UTC
             if data['Date'].dt.tz is None:
                 data['Date'] = data['Date'].dt.tz_localize('UTC')
-
-            # Convert to Eastern timezone
             data['Date'] = data['Date'].dt.tz_convert(eastern_tz)
 
- 
     return data
-
 
 def add_moving_average(df, window, col_name_prefix="MA"):
     df[f"{col_name_prefix}_{window}"] = df['Close'].rolling(window=window, min_periods=1).mean()
     return df
 
+# ----------------------------------
+# Main Layout
+# ----------------------------------
 app.layout = html.Div(
-    style={'backgroundColor': colors['background'], 'minHeight': '100vh'},
+    id='app-container',  # We'll use a callback to update background
+    style={'minHeight': '100vh'},
     children=[
+        # Header
         html.Header(
+            id='header-container',
             style={
-                'backgroundColor': colors['header'],
                 'padding': '2rem',
                 'marginBottom': '2rem',
                 'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
@@ -85,6 +98,7 @@ app.layout = html.Div(
             children=[
                 html.H1(
                     "Real-Time Stock Dashboard",
+                    id='main-title',
                     style={
                         'color': 'white',
                         'textAlign': 'center',
@@ -102,6 +116,7 @@ app.layout = html.Div(
                 )
             ]
         ),
+
         html.Div(
             style={
                 'display': 'flex',
@@ -113,29 +128,47 @@ app.layout = html.Div(
             children=[
                 # Left sidebar
                 html.Div(
+                    id='sidebar-output',  # if you want to also theme the sidebar
                     style={
                         'width': '320px',
                         'flexShrink': 0,
-                        'backgroundColor': colors['card-background'],
+                        'backgroundColor': '#ffffff',
                         'borderRadius': '12px',
                         'padding': '1.5rem',
                         'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
                     },
                     children=[
+                        # THEME DROPDOWN
+                        html.Div([
+                            html.Label("Choose a Theme:", style={'fontWeight': '600'}),
+                            dcc.Dropdown(
+                                id='theme-dropdown',
+                                options=[
+                                    {'label': 'Light Theme', 'value': 'light'},
+                                    {'label': 'Dark Theme', 'value': 'dark'}
+                                ],
+                                value='light',  # default
+                                clearable=False,
+                                style={'width': '95%'}
+                            )
+                        ], style={'marginBottom': '1.5rem'}),
+
+                        dcc.Store(id='theme-store'),
+
                         html.Div(
                             [
                                 html.Label(
                                     "Stock Symbols",
+                                    id="stock-symbols-label",
                                     style={
                                         'display': 'block',
                                         'marginBottom': '0.5rem',
-                                        'fontWeight': '600',
-                                        'color': colors['text']
+                                        'fontWeight': '600'
                                     }
                                 ),
                                 dcc.Input(
                                     id='ticker-input',
-                                    value='AAPL, MSFT, TSLA, QQQ, NVDA',
+                                    value='SPY, AAPL, MSFT, TSLA, GOOGL, NVDA',
                                     type='text',
                                     style={
                                         'width': '95%',
@@ -152,11 +185,11 @@ app.layout = html.Div(
                             [
                                 html.Label(
                                     "Date Range",
+                                    id="date-range-label",
                                     style={
                                         'display': 'block',
                                         'marginBottom': '0.5rem',
-                                        'fontWeight': '600',
-                                        'color': colors['text']
+                                        'fontWeight': '600'
                                     }
                                 ),
                                 dcc.DatePickerRange(
@@ -178,11 +211,11 @@ app.layout = html.Div(
                                     children=[
                                         html.Label(
                                             "Short MA",
+                                            id="short-ma-label",
                                             style={
                                                 'display': 'block',
                                                 'marginBottom': '0.5rem',
-                                                'fontWeight': '600',
-                                                'color': colors['text']
+                                                'fontWeight': '600'
                                             }
                                         ),
                                         dcc.Input(
@@ -204,11 +237,11 @@ app.layout = html.Div(
                                     children=[
                                         html.Label(
                                             "Long MA",
+                                            id="long-ma-label",
                                             style={
                                                 'display': 'block',
                                                 'marginBottom': '0.5rem',
-                                                'fontWeight': '600',
-                                                'color': colors['text']
+                                                'fontWeight': '600'
                                             }
                                         ),
                                         dcc.Input(
@@ -227,16 +260,17 @@ app.layout = html.Div(
                                 )
                             ]
                         ),
+
                         html.Div(
                             style={'marginBottom': '1.5rem'},
                             children=[
                                 html.Label(
                                     "Auto-Refresh Settings",
+                                    id="auto-refresh-label",
                                     style={
                                         'display': 'block',
                                         'marginBottom': '0.5rem',
-                                        'fontWeight': '600',
-                                        'color': colors['text']
+                                        'fontWeight': '600'
                                     }
                                 ),
                                 html.Div(
@@ -268,6 +302,29 @@ app.layout = html.Div(
                                 )
                             ]
                         ),
+
+                        # (NEW) Toggle for pre/post market
+                        html.Div(
+                            [
+                                html.Label(
+                                    "Include Pre/Post Market?",
+                                    id="prepost-label",
+                                    style={
+                                        'display': 'block',
+                                        'marginBottom': '0.5rem',
+                                        'fontWeight': '600'
+                                    }
+                                ),
+                                daq.ToggleSwitch(
+                                    id='prepost-toggle',
+                                    value=True,  # default: pre/post included
+                                    color="#1f77b4",
+                                    labelPosition='bottom'
+                                )
+                            ],
+                            style={'marginBottom': '1.5rem'}
+                        ),
+
                         html.Button(
                             id='submit-button',
                             n_clicks=0,
@@ -275,7 +332,7 @@ app.layout = html.Div(
                             style={
                                 'width': '100%',
                                 'padding': '1rem',
-                                'backgroundColor': colors['header'],
+                                'backgroundColor': '#1f77b4',
                                 'color': 'white',
                                 'border': 'none',
                                 'borderRadius': '8px',
@@ -286,6 +343,7 @@ app.layout = html.Div(
                         )
                     ]
                 ),
+
                 # Main content area with Tabs
                 html.Div(
                     style={'flexGrow': 1, 'minWidth': '0'},
@@ -335,6 +393,7 @@ app.layout = html.Div(
                 )
             ]
         ),
+
         dcc.Interval(
             id='refresh-interval-component',
             interval=60000,
@@ -343,6 +402,9 @@ app.layout = html.Div(
     ]
 )
 
+# ---------------------------
+# Callbacks
+# ---------------------------
 @app.callback(
     Output('refresh-interval-component', 'interval'),
     [Input('refresh-interval', 'value')]
@@ -370,18 +432,109 @@ def format_number(value):
         return f'${value/1e6:.2f}M'
     return f'${value:,.2f}'
 
+# ---------------------------
+# 1) Theme Dropdown -> theme-store
+# ---------------------------
+@app.callback(
+    Output('theme-store', 'data'),
+    [Input('theme-dropdown', 'value')]
+)
+def update_theme_store(selected_theme):
+    return THEMES[selected_theme]
+
+# ---------------------------
+# 2) Apply the theme
+# ---------------------------
+@app.callback(
+    Output('header-container', 'style'),
+    [Input('theme-store', 'data')]
+)
+def update_header_style(theme):
+    return {
+        'backgroundColor': theme['header'],
+        'padding': '2rem',
+        'marginBottom': '2rem',
+        'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+    }
+
+@app.callback(
+    Output('main-title', 'style'),
+    [Input('theme-store', 'data')]
+)
+def update_main_title_style(theme):
+    return {
+        'color': theme['text'],
+        'textAlign': 'center',
+        'margin': 0,
+        'fontWeight': '600'
+    }
+
+@app.callback(
+    Output('app-container', 'style'),
+    [Input('theme-store', 'data')]
+)
+def update_app_container_style(theme):
+    return {
+        'backgroundColor': theme['background'],
+        'minHeight': '100vh'
+    }
+
+# Optional: sidebar background
+@app.callback(
+    Output('sidebar-output', 'style'),
+    [Input('theme-store', 'data')]
+)
+def update_sidebar_style(theme):
+    return {
+        'backgroundColor': theme['card-background'],
+        'borderRadius': '12px',
+        'padding': '1.5rem',
+        'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+    }
+
+# Optional: dynamic label text color
+@app.callback(
+    [
+        Output("theme-dropdown", "style"),
+        Output("stock-symbols-label", "style"),
+        Output("date-range-label", "style"),
+        Output("short-ma-label", "style"),
+        Output("long-ma-label", "style"),
+        Output("auto-refresh-label", "style"),
+        Output("prepost-label", "style")
+    ],
+    [Input('theme-store', 'data')]
+)
+def update_label_colors(theme):
+    label_style = {
+        'display': 'block',
+        'marginBottom': '0.5rem',
+        'fontWeight': '600',
+        'color': theme['text']  # dynamic text color
+    }
+    # Return label_style for each label
+    return [label_style]*6
+
+# ---------------------------
+# 3) Main Callback
+# ---------------------------
 @app.callback(
     [Output('stock-charts', 'children'),
      Output('stock-info', 'children')],
-    [Input('submit-button', 'n_clicks'),
-     Input('refresh-interval-component', 'n_intervals')],
-    [State('ticker-input', 'value'),
-     State('date-range', 'start_date'),
-     State('date-range', 'end_date'),
-     State('short-ma', 'value'),
-     State('long-ma', 'value')]
+    [
+        Input('submit-button', 'n_clicks'),
+        Input('refresh-interval-component', 'n_intervals'),
+        Input('prepost-toggle', 'value')  # Our new toggle for pre/post
+    ],
+    [
+        State('ticker-input', 'value'),
+        State('date-range', 'start_date'),
+        State('date-range', 'end_date'),
+        State('short-ma', 'value'),
+        State('long-ma', 'value')
+    ]
 )
-def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short_ma, long_ma):
+def update_dashboard(n_clicks, n_intervals, prepost, tickers, start_date, end_date, short_ma, long_ma):
     if not tickers:
         return [], []
     
@@ -391,31 +544,42 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
     end_dt = pd.to_datetime(adjusted_end)
     days_diff = (end_dt - start_dt).days
 
-    # Decide on interval for intraday vs daily
+    # Decide on intraday vs daily
     interval = '15m' if days_diff >= 5 else '1m'
     xaxis_format = '%H:%M' if days_diff < 5 else '%Y-%m-%d'
     xaxis_title = 'Time' if days_diff < 5 else 'Date'
 
-    ticker_list = [ticker.strip().upper() for ticker in tickers.split(',')]
+    ticker_list = [t.strip().upper() for t in tickers.split(',')]
     stock_charts = []
     stock_info_html = []
     
-    for i, ticker in enumerate(ticker_list):
+    for ticker in ticker_list:
         try:
-            df = fetch_stock_data(ticker, start_dt, end_dt, interval)
+            df = fetch_stock_data(ticker, start_dt, end_dt, interval=interval, prepost=prepost)
             if df.empty:
                 continue
 
             date_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
-            short_window = int(short_ma) if short_ma else 20
-            long_window = int(long_ma) if long_ma else 50
-            df = add_moving_average(df, short_window, "Short_MA")
-            df = add_moving_average(df, long_window, "Long_MA")
+            s_window = int(short_ma) if short_ma else 20
+            l_window = int(long_ma) if long_ma else 50
+
+            df = add_moving_average(df, s_window, "Short_MA")
+            df = add_moving_average(df, l_window, "Long_MA")
+
+            if prepost:
+                rangebreaks = [
+                    dict(bounds=["sat", "mon"]),  # Hide weekends
+                    dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
+                ]
+            else:
+                rangebreaks = [
+                    dict(bounds=["sat", "mon"]),  # Hide weekends
+                    dict(bounds=[16, 9.5], pattern="hour")  # Hide overnight hours
+                ]
 
             current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
             current_price = df['Close'].iloc[-1]
             
-            # Create main price chart
             price_chart = go.Scatter(
                 x=df[date_col],
                 y=df['Close'],
@@ -426,21 +590,20 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             
             ma_short = go.Scatter(
                 x=df[date_col],
-                y=df[f'Short_MA_{short_window}'],
+                y=df[f'Short_MA_{s_window}'],
                 mode='lines',
-                name=f'MA {short_window}',
+                name=f'MA {s_window}',
                 line=dict(color='#ff7f0e', dash='dash')
             )
             
             ma_long = go.Scatter(
                 x=df[date_col],
-                y=df[f'Long_MA_{long_window}'],
+                y=df[f'Long_MA_{l_window}'],
                 mode='lines',
-                name=f'MA {long_window}',
+                name=f'MA {l_window}',
                 line=dict(color='#2ca02c', dash='dot')
             )
             
-            # Create volume chart
             volume_bars = go.Bar(
                 x=df[date_col],
                 y=df['Volume'],
@@ -451,13 +614,11 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
 
             fig = go.Figure(data=[price_chart, ma_short, ma_long, volume_bars])
             
-            # Update layout
             fig.update_layout(
                 title=f'{ticker} Stock Analysis<br><sub>Last Updated: {current_time} | Current Price: ${current_price:.2f}</sub>',
                 xaxis=dict(
                     title=xaxis_title,
                     rangeslider=dict(visible=False),
-                    # Move range selector slightly lower (y=1.05 instead of 1.2)
                     rangeselector=dict(
                         buttons=[
                             dict(step='all', label='All'),
@@ -470,25 +631,19 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
                         y=1.1,
                         yanchor='top'
                     ),
-                    rangebreaks=[
-                        dict(bounds=["sat", "mon"]),  # Hide weekends
-                        dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
-                    ],
+                    rangebreaks=rangebreaks,
                     type='date'
                 ),
                 yaxis=dict(title='Price', domain=[0.3, 1]),
                 yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False),
                 hovermode='x unified',
                 template='plotly_white',
-                # Make the chart a bit taller
                 height=500,
-                # Increase bottom margin so the legend doesn't get cut off
                 margin=dict(t=100, r=80, b=20),
-                # Legend below x-axis
                 legend=dict(
                     orientation='h',
                     x=0.5,
-                    y=0,        # negative y places it below the x-axis
+                    y=0,
                     xanchor='center',
                     yanchor='top'
                 )
@@ -496,7 +651,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             
             stock_charts.append(dcc.Graph(figure=fig))
             
-            # Stock information
+            # Stock info
             stock = yf.Ticker(ticker)
             info = stock.info
             info_items = [
@@ -516,13 +671,13 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             
             info_card = html.Div(
                 style={
-                    'backgroundColor': colors['card-background'],
+                    'backgroundColor': '#ffffff',  # you could also read from theme store if you want dynamic
                     'borderRadius': '10px',
                     'padding': '1.5rem',
                     'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
                 },
                 children=[
-                    html.H4(ticker, style={'marginTop': 0, 'color': colors['header']}),
+                    html.H4(ticker, style={'marginTop': 0, 'color': '#1f77b4'}),
                     html.Div([
                         html.Div(
                             style={
@@ -546,11 +701,14 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             stock_info_html.append(
                 html.Div(
                     f"Error loading {ticker}: {str(e)}", 
-                    style={'color': colors['negative']}
+                    style={'color': '#e74c3c'}
                 )
             )
     
     return stock_charts, stock_info_html
 
+# ------------------------------------
+# Run the server
+# ------------------------------------
 if __name__ == '__main__':
     app.run_server(debug=True)
