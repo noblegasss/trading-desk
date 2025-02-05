@@ -9,6 +9,7 @@ import datetime
 
 app = dash.Dash(__name__)
 server = app.server
+app.title = "Real-Time Stock Dashboard"
 
 def adjust_to_trading_day(date_str):
     dt = pd.to_datetime(date_str).date()
@@ -44,8 +45,7 @@ def add_moving_average(df, window, col_name_prefix="MA"):
     df[f"{col_name_prefix}_{window}"] = df['Close'].rolling(window=window, min_periods=1).mean()
     return df
 
-app = dash.Dash(__name__)
-app.title = "Real-Time Stock Dashboard"
+
 
 app.layout = html.Div([
     html.H1("Real-Time Stock Dashboard", style={'textAlign': 'center'}),
