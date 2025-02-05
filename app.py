@@ -6,6 +6,9 @@ import pandas as pd
 import yfinance as yf
 import datetime
 import pytz
+import plotly.io as pio
+
+pio.renderers.default = 'browser'
 
 app = dash.Dash(__name__)
 server = app.server
@@ -223,7 +226,6 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         long_window = int(long_ma) if long_ma else 50
         df = add_moving_average(df, short_window, "Short_MA")
         df = add_moving_average(df, long_window, "Long_MA")
-        df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
         print(df.head())
 
