@@ -227,7 +227,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             print(df.head())
 
             # Get the current time and current stock price from the latest data point
-            current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
             current_price = df['Close'].iloc[-1]
             
             color = colors[i % len(colors)]
@@ -280,30 +280,30 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
             ))
             
             # Fetch additional stock information via yfinance
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            info_table = html.Table([
-                html.Tr([html.Th("Attribute"), html.Th("Value")]),
-                html.Tr([html.Td("Name"), html.Td(info.get('longName', 'N/A'))]),
-                html.Tr([html.Td("Sector"), html.Td(info.get('sector', 'N/A'))]),
-                html.Tr([html.Td("Market Cap"), html.Td(f"${info.get('marketCap', 0):,}")]),
-                html.Tr([html.Td("Previous Close"), html.Td(info.get('previousClose', 'N/A'))]),
-                html.Tr([html.Td("Open"), html.Td(info.get('open', 'N/A'))]),
-                html.Tr([html.Td("High"), html.Td(info.get('dayHigh', 'N/A'))]),
-                html.Tr([html.Td("Low"), html.Td(info.get('dayLow', 'N/A'))]),
-                html.Tr([html.Td("Volume"), html.Td(f"{info.get('volume', 0):,}")]),
-                html.Tr([html.Td("Average Volume"), html.Td(f"{info.get('averageVolume', 0):,}")]),
-                html.Tr([html.Td("52 Week High"), html.Td(info.get('fiftyTwoWeekHigh', 'N/A'))]),
-                html.Tr([html.Td("52 Week Low"), html.Td(info.get('fiftyTwoWeekLow', 'N/A'))]),
-                html.Tr([html.Td("PE Ratio"), html.Td(info.get('trailingPE', 'N/A'))])
-            ], style={'border': '1px solid black', 'margin-bottom': '20px', 'width': '300px'})
+            # stock = yf.Ticker(ticker)
+            # info = stock.info
+            # info_table = html.Table([
+            #     html.Tr([html.Th("Attribute"), html.Th("Value")]),
+            #     html.Tr([html.Td("Name"), html.Td(info.get('longName', 'N/A'))]),
+            #     html.Tr([html.Td("Sector"), html.Td(info.get('sector', 'N/A'))]),
+            #     html.Tr([html.Td("Market Cap"), html.Td(f"${info.get('marketCap', 0):,}")]),
+            #     html.Tr([html.Td("Previous Close"), html.Td(info.get('previousClose', 'N/A'))]),
+            #     html.Tr([html.Td("Open"), html.Td(info.get('open', 'N/A'))]),
+            #     html.Tr([html.Td("High"), html.Td(info.get('dayHigh', 'N/A'))]),
+            #     html.Tr([html.Td("Low"), html.Td(info.get('dayLow', 'N/A'))]),
+            #     html.Tr([html.Td("Volume"), html.Td(f"{info.get('volume', 0):,}")]),
+            #     html.Tr([html.Td("Average Volume"), html.Td(f"{info.get('averageVolume', 0):,}")]),
+            #     html.Tr([html.Td("52 Week High"), html.Td(info.get('fiftyTwoWeekHigh', 'N/A'))]),
+            #     html.Tr([html.Td("52 Week Low"), html.Td(info.get('fiftyTwoWeekLow', 'N/A'))]),
+            #     html.Tr([html.Td("PE Ratio"), html.Td(info.get('trailingPE', 'N/A'))])
+            # ], style={'border': '1px solid black', 'margin-bottom': '20px', 'width': '300px'})
             
-            stock_info_html.append(
-                html.Div([
-                    html.H4(f"Stock Info for {ticker}"),
-                    info_table
-                ], style={'display': 'inline-block', 'margin': '10px', 'verticalAlign': 'top'})
-            )
+            # stock_info_html.append(
+            #     html.Div([
+            #         html.H4(f"Stock Info for {ticker}"),
+            #         info_table
+            #     ], style={'display': 'inline-block', 'margin': '10px', 'verticalAlign': 'top'})
+            # )
         except Exception as e:
             stock_info_html.append(
                 html.Div([html.H4(f"Error fetching info for {ticker}: {str(e)}")])
