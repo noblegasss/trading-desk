@@ -6,6 +6,10 @@ import pandas as pd
 import yfinance as yf
 import datetime
 
+
+app = dash.Dash(__name__)
+server = app.server
+
 def adjust_to_trading_day(date_str):
     dt = pd.to_datetime(date_str).date()
     weekday = dt.weekday()
