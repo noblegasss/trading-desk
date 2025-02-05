@@ -210,104 +210,104 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
     colors = ['blue', 'green', 'orange', 'purple', 'brown', 'magenta', 'cyan', 'grey']
     
     for i, ticker in enumerate(ticker_list):
-        try:
-            df = fetch_stock_data(ticker, start_dt, end_dt, interval)
-            if df.empty:
-                continue
-            
-            # Use the appropriate date column
-            date_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
-            
-            # Calculate moving averages
-            short_window = int(short_ma) if short_ma else 20
-            long_window = int(long_ma) if long_ma else 50
-            df = add_moving_average(df, short_window, "Short_MA")
-            df = add_moving_average(df, long_window, "Long_MA")
+        # try:
+        df = fetch_stock_data(ticker, start_dt, end_dt, interval)
+        if df.empty:
+            continue
+        
+        # Use the appropriate date column
+        date_col = 'Datetime' if 'Datetime' in df.columns else 'Date'
+        
+        # Calculate moving averages
+        short_window = int(short_ma) if short_ma else 20
+        long_window = int(long_ma) if long_ma else 50
+        df = add_moving_average(df, short_window, "Short_MA")
+        df = add_moving_average(df, long_window, "Long_MA")
 
-            print(df.head())
+        print(df.head())
 
-            # Get the current time and current stock price from the latest data point
-            current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
-            current_price = df['Close'].iloc[-1]
-            
-            color = colors[i % len(colors)]
-            price_trace = go.Scatter(
-                x=df[date_col], 
-                y=df['Close'], 
-                mode='lines',
-                name=f"{ticker} Price",
-                line=dict(color=color)
-            )
-            short_ma_trace = go.Scatter(
-                x=df[date_col],
-                y=df[f"Short_MA_{short_window}"],
-                mode='lines',
-                name=f"{ticker} Short MA ({short_window})",
-                line=dict(color=color, dash='dash')
-            )
-            long_ma_trace = go.Scatter(
-                x=df[date_col],
-                y=df[f"Long_MA_{long_window}"],
-                mode='lines',
-                name=f"{ticker} Long MA ({long_window})",
-                line=dict(color=color, dash='dot')
-            )
-            
-            # Build the layout with the updated title including last update time and current price
-            layout = go.Layout(
-                title=dict(
-                    text=f"{ticker} Stock Price<br><sub>Last Updated: {current_time} | Current Price: ${current_price:.2f}</sub>",
-                    x=0.05,
-                    xanchor='left'
-                ),
-                xaxis=dict(
-                    title=xaxis_title,
-                    tickformat=xaxis_format,
-                    rangebreaks=[
-                        dict(bounds=["sat", "mon"]),  # Hide weekends
-                        dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
-                    ],
-                    type='date'
-                ),
-                yaxis=dict(title='Price (USD)'),
-                hovermode='x unified',
-                margin=dict(t=60)  # Extra top margin for the title
-            )
-            
-            stock_charts.append(dcc.Graph(
-                id=f'graph-{ticker}', 
-                figure={'data': [price_trace, short_ma_trace, long_ma_trace], 'layout': layout}
-            ))
-            
-            # Fetch additional stock information via yfinance
-            # stock = yf.Ticker(ticker)
-            # info = stock.info
-            # info_table = html.Table([
-            #     html.Tr([html.Th("Attribute"), html.Th("Value")]),
-            #     html.Tr([html.Td("Name"), html.Td(info.get('longName', 'N/A'))]),
-            #     html.Tr([html.Td("Sector"), html.Td(info.get('sector', 'N/A'))]),
-            #     html.Tr([html.Td("Market Cap"), html.Td(f"${info.get('marketCap', 0):,}")]),
-            #     html.Tr([html.Td("Previous Close"), html.Td(info.get('previousClose', 'N/A'))]),
-            #     html.Tr([html.Td("Open"), html.Td(info.get('open', 'N/A'))]),
-            #     html.Tr([html.Td("High"), html.Td(info.get('dayHigh', 'N/A'))]),
-            #     html.Tr([html.Td("Low"), html.Td(info.get('dayLow', 'N/A'))]),
-            #     html.Tr([html.Td("Volume"), html.Td(f"{info.get('volume', 0):,}")]),
-            #     html.Tr([html.Td("Average Volume"), html.Td(f"{info.get('averageVolume', 0):,}")]),
-            #     html.Tr([html.Td("52 Week High"), html.Td(info.get('fiftyTwoWeekHigh', 'N/A'))]),
-            #     html.Tr([html.Td("52 Week Low"), html.Td(info.get('fiftyTwoWeekLow', 'N/A'))]),
-            #     html.Tr([html.Td("PE Ratio"), html.Td(info.get('trailingPE', 'N/A'))])
-            # ], style={'border': '1px solid black', 'margin-bottom': '20px', 'width': '300px'})
-            
-            # stock_info_html.append(
-            #     html.Div([
-            #         html.H4(f"Stock Info for {ticker}"),
-            #         info_table
-            #     ], style={'display': 'inline-block', 'margin': '10px', 'verticalAlign': 'top'})
-            # )
-        except Exception as e:
-            stock_info_html.append(
-                html.Div([html.H4(f"Error fetching info for {ticker}: {str(e)}")])
-            )
+        # Get the current time and current stock price from the latest data point
+        current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
+        current_price = df['Close'].iloc[-1]
+        
+        color = colors[i % len(colors)]
+        price_trace = go.Scatter(
+            x=df[date_col], 
+            y=df['Close'], 
+            mode='lines',
+            name=f"{ticker} Price",
+            line=dict(color=color)
+        )
+        short_ma_trace = go.Scatter(
+            x=df[date_col],
+            y=df[f"Short_MA_{short_window}"],
+            mode='lines',
+            name=f"{ticker} Short MA ({short_window})",
+            line=dict(color=color, dash='dash')
+        )
+        long_ma_trace = go.Scatter(
+            x=df[date_col],
+            y=df[f"Long_MA_{long_window}"],
+            mode='lines',
+            name=f"{ticker} Long MA ({long_window})",
+            line=dict(color=color, dash='dot')
+        )
+        
+        # Build the layout with the updated title including last update time and current price
+        layout = go.Layout(
+            title=dict(
+                text=f"{ticker} Stock Price<br><sub>Last Updated: {current_time} | Current Price: ${current_price:.2f}</sub>",
+                x=0.05,
+                xanchor='left'
+            ),
+            xaxis=dict(
+                title=xaxis_title,
+                tickformat=xaxis_format,
+                rangebreaks=[
+                    dict(bounds=["sat", "mon"]),  # Hide weekends
+                    dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
+                ],
+                type='date'
+            ),
+            yaxis=dict(title='Price (USD)'),
+            hovermode='x unified',
+            margin=dict(t=60)  # Extra top margin for the title
+        )
+        
+        stock_charts.append(dcc.Graph(
+            id=f'graph-{ticker}', 
+            figure={'data': [price_trace, short_ma_trace, long_ma_trace], 'layout': layout}
+        ))
+        
+        # Fetch additional stock information via yfinance
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        info_table = html.Table([
+            html.Tr([html.Th("Attribute"), html.Th("Value")]),
+            html.Tr([html.Td("Name"), html.Td(info.get('longName', 'N/A'))]),
+            html.Tr([html.Td("Sector"), html.Td(info.get('sector', 'N/A'))]),
+            html.Tr([html.Td("Market Cap"), html.Td(f"${info.get('marketCap', 0):,}")]),
+            html.Tr([html.Td("Previous Close"), html.Td(info.get('previousClose', 'N/A'))]),
+            html.Tr([html.Td("Open"), html.Td(info.get('open', 'N/A'))]),
+            html.Tr([html.Td("High"), html.Td(info.get('dayHigh', 'N/A'))]),
+            html.Tr([html.Td("Low"), html.Td(info.get('dayLow', 'N/A'))]),
+            html.Tr([html.Td("Volume"), html.Td(f"{info.get('volume', 0):,}")]),
+            html.Tr([html.Td("Average Volume"), html.Td(f"{info.get('averageVolume', 0):,}")]),
+            html.Tr([html.Td("52 Week High"), html.Td(info.get('fiftyTwoWeekHigh', 'N/A'))]),
+            html.Tr([html.Td("52 Week Low"), html.Td(info.get('fiftyTwoWeekLow', 'N/A'))]),
+            html.Tr([html.Td("PE Ratio"), html.Td(info.get('trailingPE', 'N/A'))])
+        ], style={'border': '1px solid black', 'margin-bottom': '20px', 'width': '300px'})
+        
+        stock_info_html.append(
+            html.Div([
+                html.H4(f"Stock Info for {ticker}"),
+                info_table
+            ], style={'display': 'inline-block', 'margin': '10px', 'verticalAlign': 'top'})
+        )
+        # except Exception as e:
+        #     stock_info_html.append(
+        #         html.Div([html.H4(f"Error fetching info for {ticker}: {str(e)}")])
+        #     )
     
     return stock_charts, stock_info_html
 
