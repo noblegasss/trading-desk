@@ -3,7 +3,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import pandas as pd
-import dash_table
+from dash import dash_table
 import numpy as np
 import yfinance as yf
 import datetime
@@ -728,6 +728,8 @@ def update_dashboard(n_clicks, n_intervals, prepost, chart_type,
             info = stock.info
             info_items = [
                 ('Current Price', format_number(current_price)),
+                ('Industry', info.get('industry', 'N/A')),
+                ('Sector', info.get('sector', 'N/A')),
                 ('Previous Close', format_number(info.get('previousClose'))),
                 ('Open', format_number(info.get('open'))),
                 ('Day Range', f"{info.get('dayLow', 'N/A')} - {info.get('dayHigh', 'N/A')}"),
