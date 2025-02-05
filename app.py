@@ -5,11 +5,12 @@ import plotly.graph_objs as go
 import pandas as pd
 import yfinance as yf
 import datetime
-
+import pytz
 
 app = dash.Dash(__name__)
 server = app.server
 app.title = "Real-Time Stock Dashboard"
+eastern_tz = pytz.timezone('US/Eastern')
 
 def adjust_to_trading_day(date_str):
     dt = pd.to_datetime(date_str).date()
@@ -25,6 +26,9 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
     end_dt = pd.to_datetime(end_date)
     # Increase end date by one day to include the final day
     end_dt += pd.Timedelta(days=1)
+
+    start_dt = start_dt.strftime('%Y-%m-%d')
+    end_dt = end_dt.strftime('%Y-%m-%d')
     
     data = yf.download(
         ticker, 
@@ -68,9 +72,9 @@ app.layout = html.Div([
                 dcc.DatePickerRange(
                     id='date-range',
                     min_date_allowed=datetime.date(2000, 1, 1),
-                    max_date_allowed=datetime.date.today(),
-                    start_date=datetime.date.today(),
-                    end_date=datetime.date.today()
+                    max_date_allowed=datetime.datetime.now(eastern_tz).date(),
+                    start_date=datetime.datetime.now(eastern_tz).date(),
+                    end_date=datetime.datetime.now(eastern_tz).date()
                 )
             ], style={'padding': '10px'}),
             
@@ -306,4 +310,5 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
     return stock_charts, stock_info_html
 
 if __name__ == '__main__':
-    app.run_server(debug=True, host='0.0.0.0', port=8080)
+    # app.run_server(debug=True, host='0.0.0.0', port=8080)
+    app.run_server(debug=True)
