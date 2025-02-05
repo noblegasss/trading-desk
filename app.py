@@ -45,7 +45,7 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
         data.reset_index(inplace=True)
         # If the columns still form a MultiIndex, flatten them
         if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(1)
+            data.columns = data.columns.get_level_values(0)
         # Rename 'Datetime' to 'Date' for consistency
         if 'Datetime' in data.columns:
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
