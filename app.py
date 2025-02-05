@@ -6,6 +6,7 @@ import pandas as pd
 import yfinance as yf
 import datetime
 import pytz
+import dash_daq as daq
 
 
 app = dash.Dash(__name__)
@@ -25,20 +26,16 @@ def adjust_to_trading_day(date_str):
     return dt
 
 def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
-    start_dt = pd.to_datetime(start_date, utc=True)
-    start_dt = start_dt.tz_convert('US/Eastern')
-    end_dt = pd.to_datetime(end_date, utc=True)
-    end_dt = end_dt.tz_convert('US/Eastern')
-    # Increase end date by one day to include the final day
-    end_dt += pd.Timedelta(days=1)
-    
+    eastern_tz = pytz.timezone('US/Eastern')
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1)  # Include the end date
+
     data = yf.download(
-        ticker, 
-        start=start_dt.strftime('%Y-%m-%d'), 
-        end=end_dt.strftime('%Y-%m-%d'), 
+        ticker,
+        start=start_dt.strftime('%Y-%m-%d'),
+        end=end_dt.strftime('%Y-%m-%d'),
         interval=interval,
-        prepost=True,  # Fetch both pre and post market data
-        group_by='column'  # Return flat columns instead of a MultiIndex
+        prepost=True
     )
     
     if not data.empty:
@@ -51,7 +48,7 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
         
         # Convert the 'Date' column to a datetime object
-        data['Date'] = pd.to_datetime(data['Date'])
+        data['Date'] = pd.to_datetime(data['Date']).dt.tz_convert(eastern_tz)
     return data
 
 def add_moving_average(df, window, col_name_prefix="MA"):
@@ -121,20 +118,17 @@ app.layout = html.Div([
                 )
             ], style={'padding': '10px'}),
             
-            # Radio buttons to control auto-refresh
+            # Toggerswitch buttons to control auto-refresh
             html.Div([
                 html.Label("Auto-Refresh Control:"),
-                dcc.RadioItems(
+                daq.ToggleSwitch(
                     id='auto-refresh-toggle',
-                    options=[
-                        {'label': 'Start Auto Refresh', 'value': 'start'},
-                        {'label': 'Stop Auto Refresh', 'value': 'stop'}
-                    ],
-                    value='start',
-                    labelStyle={'display': 'inline-block', 'marginRight': '10px'}
+                    value=True,  # Default state: True (Auto-refresh ON)
+                    label=['Stop', 'Start'],
+                    labelPosition='bottom'
                 )
-            ], style={'padding': '10px'}),
-            
+            ], style={'padding': '20px'}),
+                        
             html.Div([
                 html.Button(id='submit-button', n_clicks=0, children='Update Dashboard')
             ], style={'padding': '10px'}),
@@ -176,8 +170,12 @@ def update_refresh_interval(interval_minutes):
     Output('refresh-interval-component', 'disabled'),
     [Input('auto-refresh-toggle', 'value')]
 )
-def toggle_autorefresh(auto_refresh_value):
-    return True if auto_refresh_value == 'stop' else False
+def toggle_autorefresh(auto_refresh_enabled):
+    return not auto_refresh_enabled
+
+def update_content(n):
+    # Your code to update the content goes here
+    return f'Content updated {n} times.'
 
 # Main callback to update charts and stock information
 @app.callback(
@@ -233,7 +231,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         df = add_moving_average(df, short_window, "Short_MA")
         df = add_moving_average(df, long_window, "Long_MA")
 
-        print(df.head())
+        print(df.tail())
 
         # Get the current time and current stock price from the latest data point
         current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -274,7 +272,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
                 tickformat=xaxis_format,
                 rangebreaks=[
                     dict(bounds=["sat", "mon"]),  # Hide weekends
-                    dict(bounds=[20, 4], pattern="hour")  # Hide overnight hours
+                    dict(bounds=[20, 9], pattern="hour")  # Hide overnight hours
                 ],
                 type='date'
             ),
