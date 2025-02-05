@@ -3,10 +3,13 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import pandas as pd
+import dash_table
+import numpy as np
 import yfinance as yf
 import datetime
 import pytz
 import dash_daq as daq
+
 
 app = dash.Dash(__name__)
 server = app.server
@@ -409,6 +412,23 @@ app.layout = html.Div(
                                             }
                                         )
                                     ]
+                                ),
+                                # NEW: Sector Analysis Tab
+                                dcc.Tab(
+                                    label='Sector Analysis',
+                                    value='tab-sector',
+                                    children=[
+                                        dcc.Loading(
+                                            id="loading-sector",
+                                            type="circle",
+                                            children=[
+                                                html.Div(
+                                                    id='sector-analysis-graph',
+                                                    style={'padding': '1rem'}
+                                                )
+                                            ]
+                                        )
+                                    ]
                                 )
                             ]
                         )
@@ -534,11 +554,10 @@ def update_label_colors(theme):
         'fontWeight': '600',
         'color': theme['text']  # dynamic text color
     }
-    # Return label_style for each label
     return [label_style]*6
 
 # ---------------------------
-# 3) Main Callback
+# 3) Main Dashboard Callback
 # ---------------------------
 @app.callback(
     [Output('stock-charts', 'children'),
@@ -634,7 +653,7 @@ def update_dashboard(n_clicks, n_intervals, prepost, chart_type,
                 )
                 chart_data.append(price_chart)
 
-            # Always include MAs as lines
+            # Always include moving averages
             ma_short = go.Scatter(
                 x=df[date_col],
                 y=df[f'Short_MA_{s_window}'],
@@ -759,6 +778,321 @@ def update_dashboard(n_clicks, n_intervals, prepost, chart_type,
             )
     
     return stock_charts, stock_info_html
+
+# ---------------------------
+# 4) Sector Analysis Callback (without Subtabs)
+# ---------------------------
+@app.callback(
+    Output('sector-analysis-graph', 'children'),
+    [Input('submit-button', 'n_clicks'),
+     Input('refresh-interval-component', 'n_intervals')]
+)
+def update_sector_analysis(n_clicks, n_intervals):
+    print("Sector analysis callback triggered")
+    # Map each sector to its representative ETF ticker.
+    sectors_etfs = {
+        'Technology': 'XLK',
+        'Healthcare': 'XLV',
+        'Financials': 'XLF',
+        'Consumer Discretionary': 'XLY',
+        'Industrials': 'XLI',
+        'Energy': 'XLE',
+        'Utilities': 'XLU',
+        'Real Estate': 'XLRE',
+        'Consumer Staples': 'XLP',
+        'Materials': 'XLB'
+    }
+    
+    # Dictionaries to hold computed performance metrics.
+    daily_perf = {}
+    weekly_perf = {}
+    monthly_perf = {}
+    quarter_return = {}
+    week_range = {}
+    month_range = {}
+    year_range = {}
+    yearly_return = {}
+    
+    # For correlation matrices: use 1mo and 1y daily closing prices.
+    one_month_close = {}
+    one_year_close = {}
+    
+    for sector, etf in sectors_etfs.items():
+        try:
+            ticker = yf.Ticker(etf)
+            info = ticker.info
+            
+            # Daily performance: current vs previous close.
+            current = info.get('regularMarketOpen')
+            previous_close = info.get('regularMarketPreviousClose')
+            if current is not None and previous_close and previous_close != 0:
+                daily = (current - previous_close) / previous_close * 100
+            else:
+                daily = 0.0
+            daily_perf[sector] = daily
+            
+            # Weekly and monthly performance: use 1mo historical data (daily).
+            hist_1mo = ticker.history(period="1mo", interval="1d")
+            if hist_1mo.empty:
+                weekly_perf[sector] = 0.0
+                monthly_perf[sector] = 0.0
+            else:
+                last_date = hist_1mo.index[-1]
+                current_close = hist_1mo["Close"].iloc[-1]
+                
+                # Weekly performance (~7 days ago).
+                desired_weekly = last_date - pd.Timedelta(days=7)
+                weekly_rows = hist_1mo[hist_1mo.index <= desired_weekly]
+                if not weekly_rows.empty:
+                    weekly_close = weekly_rows["Close"].iloc[-1]
+                else:
+                    weekly_close = hist_1mo["Close"].iloc[0]
+                weekly_perf[sector] = (current_close - weekly_close) / weekly_close * 100
+                
+                # Monthly performance (~30 days ago).
+                desired_monthly = last_date - pd.Timedelta(days=30)
+                monthly_rows = hist_1mo[hist_1mo.index <= desired_monthly]
+                if not monthly_rows.empty:
+                    monthly_close_val = monthly_rows["Close"].iloc[-1]
+                else:
+                    monthly_close_val = hist_1mo["Close"].iloc[0]
+                monthly_perf[sector] = (current_close - monthly_close_val) / monthly_close_val * 100
+            
+            # One-quarter return: use 3mo data.
+            hist_3mo = ticker.history(period="3mo", interval="1d")
+            if not hist_3mo.empty:
+                first_close = hist_3mo["Close"].iloc[0]
+                last_close = hist_3mo["Close"].iloc[-1]
+                quarter_return[sector] = (last_close - first_close) / first_close * 100
+            else:
+                quarter_return[sector] = 0.0
+            
+            # Week range: from 1wk data.
+            hist_1wk = ticker.history(period="1wk", interval="1d")
+            if not hist_1wk.empty:
+                low_val = hist_1wk["Low"].min()
+                high_val = hist_1wk["High"].max()
+                week_range[sector] = (high_val - low_val) / low_val * 100
+            else:
+                week_range[sector] = 0.0
+            
+            # Month range: from 1mo data.
+            if not hist_1mo.empty:
+                low_val = hist_1mo["Low"].min()
+                high_val = hist_1mo["High"].max()
+                month_range[sector] = (high_val - low_val) / low_val * 100
+            else:
+                month_range[sector] = 0.0
+            
+            # Year range and Yearly return: from 1y data.
+            hist_1y = ticker.history(period="1y", interval="1d")
+            if not hist_1y.empty:
+                low_val = hist_1y["Low"].min()
+                high_val = hist_1y["High"].max()
+                year_range[sector] = (high_val - low_val) / low_val * 100
+                first_close = hist_1y["Close"].iloc[0]
+                last_close = hist_1y["Close"].iloc[-1]
+                yearly_return[sector] = (last_close - first_close) / first_close * 100
+            else:
+                year_range[sector] = 0.0
+                yearly_return[sector] = 0.0
+            
+            # For 1-month correlation: fetch 1mo daily data.
+            hist_1m_corr = ticker.history(period="1mo", interval="1d")
+            if not hist_1m_corr.empty:
+                one_month_close[sector] = hist_1m_corr["Close"]
+            else:
+                one_month_close[sector] = pd.Series([], dtype=float)
+            
+            # For 1-year correlation: fetch 1y daily data.
+            hist_1y_corr = ticker.history(period="1y", interval="1d")
+            if not hist_1y_corr.empty:
+                one_year_close[sector] = hist_1y_corr["Close"]
+            else:
+                one_year_close[sector] = pd.Series([], dtype=float)
+            
+            print(f"{sector} ({etf}): daily={daily_perf[sector]:.2f}%, weekly={weekly_perf[sector]:.2f}%, monthly={monthly_perf[sector]:.2f}%, "
+                  f"quarter={quarter_return[sector]:.2f}%, yearlyReturn={yearly_return[sector]:.2f}%, weekRange={week_range[sector]:.2f}%, "
+                  f"monthRange={month_range[sector]:.2f}%, yearRange={year_range[sector]:.2f}%")
+        except Exception as e:
+            print(f"Error fetching data for {etf}: {e}")
+            daily_perf[sector] = weekly_perf[sector] = monthly_perf[sector] = quarter_return[sector] = week_range[sector] = month_range[sector] = year_range[sector] = yearly_return[sector] = 0.0
+            one_month_close[sector] = pd.Series([], dtype=float)
+            one_year_close[sector] = pd.Series([], dtype=float)
+    
+    # Build bar charts for performance.
+    daily_fig = go.Figure(
+        data=[go.Bar(
+            x=list(daily_perf.keys()),
+            y=list(daily_perf.values()),
+            marker_color=['#1f77b4' if v >= 0 else '#e74c3c' for v in daily_perf.values()]
+        )]
+    )
+    daily_fig.update_layout(
+        title="Daily Performance (%)",
+        xaxis_title="Sector",
+        yaxis_title="Daily % Change",
+        template="plotly_white",
+        margin=dict(t=50, b=50, l=50, r=50)
+    )
+    
+    weekly_fig = go.Figure(
+        data=[go.Bar(
+            x=list(weekly_perf.keys()),
+            y=list(weekly_perf.values()),
+            marker_color=['#1f77b4' if v >= 0 else '#e74c3c' for v in weekly_perf.values()]
+        )]
+    )
+    weekly_fig.update_layout(
+        title="Weekly Performance (%)",
+        xaxis_title="Sector",
+        yaxis_title="Weekly % Change",
+        template="plotly_white",
+        margin=dict(t=50, b=50, l=50, r=50)
+    )
+    
+    monthly_fig = go.Figure(
+        data=[go.Bar(
+            x=list(monthly_perf.keys()),
+            y=list(monthly_perf.values()),
+            marker_color=['#1f77b4' if v >= 0 else '#e74c3c' for v in monthly_perf.values()]
+        )]
+    )
+    monthly_fig.update_layout(
+        title="Monthly Performance (%)",
+        xaxis_title="Sector",
+        yaxis_title="Monthly % Change",
+        template="plotly_white",
+        margin=dict(t=50, b=50, l=50, r=50)
+    )
+    
+    # Combine performance graphs side by side.
+    graphs_layout = html.Div([
+        html.Div(dcc.Graph(figure=daily_fig), style={'flex': '1', 'padding': '10px'}),
+        html.Div(dcc.Graph(figure=weekly_fig), style={'flex': '1', 'padding': '10px'}),
+        html.Div(dcc.Graph(figure=monthly_fig), style={'flex': '1', 'padding': '10px'})
+    ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around'})
+    
+    # Build correlation heat maps.
+    # 1 Month correlation heat map.
+    one_month_df = pd.DataFrame({sector: series for sector, series in one_month_close.items() if not series.empty})
+    if not one_month_df.empty:
+        one_month_corr = one_month_df.corr()
+        one_month_heatmap = go.Figure(data=go.Heatmap(
+            z=one_month_corr.values,
+            x=one_month_corr.columns,
+            y=one_month_corr.index,
+            colorscale='RdBu',
+            zmin=-1, zmax=1,
+            text=one_month_corr.round(2).values,
+            texttemplate="%{text:.2f}",
+            colorbar=dict(title="Corr")
+        ))
+        one_month_heatmap.update_layout(
+            title="1 Month Price Correlation",
+            xaxis_title="Sector",
+            yaxis_title="Sector",
+            template="plotly_white",
+            margin=dict(t=50, b=50, l=50, r=50)
+        )
+    else:
+        one_month_heatmap = go.Figure()
+    
+    # 1 Year correlation heat map.
+    one_year_df = pd.DataFrame({sector: series for sector, series in one_year_close.items() if not series.empty})
+    if not one_year_df.empty:
+        one_year_corr = one_year_df.corr()
+        one_year_heatmap = go.Figure(data=go.Heatmap(
+            z=one_year_corr.values,
+            x=one_year_corr.columns,
+            y=one_year_corr.index,
+            colorscale='RdBu',
+            zmin=-1, zmax=1,
+            text=one_year_corr.round(2).values,
+            texttemplate="%{text:.2f}",
+            colorbar=dict(title="Corr")
+        ))
+        one_year_heatmap.update_layout(
+            title="1 Year Price Correlation",
+            xaxis_title="Sector",
+            yaxis_title="Sector",
+            template="plotly_white",
+            margin=dict(t=50, b=50, l=50, r=50)
+        )
+    else:
+        one_year_heatmap = go.Figure()
+    
+    # Arrange the two correlation heat maps side by side.
+    heatmaps_layout = html.Div([
+        html.Div(dcc.Graph(figure=one_month_heatmap), style={'flex': '1', 'padding': '10px'}),
+        html.Div(dcc.Graph(figure=one_year_heatmap), style={'flex': '1', 'padding': '10px'})
+    ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around'})
+    
+    # Prepare extended summary table data.
+    summary_data = []
+    for sector, etf in sectors_etfs.items():
+        summary_data.append({
+            "Sector": sector,
+            "Ticker": etf,
+            "Daily (%)": f"{daily_perf.get(sector, 0):.2f}%",
+            "Weekly (%)": f"{weekly_perf.get(sector, 0):.2f}%",
+            "Monthly (%)": f"{monthly_perf.get(sector, 0):.2f}%",
+            "1Q Return (%)": f"{quarter_return.get(sector, 0):.2f}%",
+            "Yearly Return (%)": f"{yearly_return.get(sector, 0):.2f}%",
+            "Week Range (%)": f"{week_range.get(sector, 0):.2f}%",
+            "Month Range (%)": f"{month_range.get(sector, 0):.2f}%",
+            "Year Range (%)": f"{year_range.get(sector, 0):.2f}%"
+        })
+    
+    # Create a styled DataTable for the extended summary.
+    summary_table = dash_table.DataTable(
+        id='summary-table',
+        columns=[
+            {'name': 'Sector', 'id': 'Sector'},
+            {'name': 'Ticker', 'id': 'Ticker'},
+            {'name': 'Daily (%)', 'id': 'Daily (%)'},
+            {'name': 'Weekly (%)', 'id': 'Weekly (%)'},
+            {'name': 'Monthly (%)', 'id': 'Monthly (%)'},
+            {'name': '1Q Return (%)', 'id': '1Q Return (%)'},
+            {'name': 'Yearly Return (%)', 'id': 'Yearly Return (%)'},
+            {'name': 'Week Range (%)', 'id': 'Week Range (%)'},
+            {'name': 'Month Range (%)', 'id': 'Month Range (%)'},
+            {'name': 'Year Range (%)', 'id': 'Year Range (%)'}
+        ],
+        data=summary_data,
+        sort_action="native",  # Enable sorting
+        style_cell={
+            'textAlign': 'center',
+            'padding': '8px',
+            'fontFamily': 'Arial, sans-serif',
+            'fontSize': '14px',
+            'color': '#333',
+            'border': '1px solid #ddd'
+        },
+        style_header={
+            'backgroundColor': '#2c3e50',
+            'fontWeight': 'bold',
+            'color': 'white',
+            'border': '1px solid #ddd'
+        },
+        style_data_conditional=[
+            {'if': {'row_index': 'odd'}, 'backgroundColor': 'rgb(248, 248, 248)'}
+        ],
+        style_table={'width': '90%', 'margin': '20px auto'},
+        page_action='none'
+    )
+    
+    # Combine the layouts: performance graphs, correlation heat maps, and summary table.
+    full_layout = html.Div([
+        graphs_layout,
+        html.Br(),
+        heatmaps_layout,
+        html.Br(),
+        summary_table
+    ])
+    
+    print("Performance graphs, correlation heat maps, and extended summary table built successfully.")
+    return full_layout
 
 # ------------------------------------
 # Run the server
