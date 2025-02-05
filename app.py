@@ -495,7 +495,6 @@ def update_sidebar_style(theme):
 # Optional: dynamic label text color
 @app.callback(
     [
-        Output("theme-dropdown", "style"),
         Output("stock-symbols-label", "style"),
         Output("date-range-label", "style"),
         Output("short-ma-label", "style"),
