@@ -993,8 +993,7 @@ def update_sector_analysis(n_clicks, n_intervals):
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50),
-            height=500   # Increased height
+            margin=dict(t=50, b=50, l=50, r=50)
         )
     else:
         one_month_heatmap = go.Figure()
@@ -1018,8 +1017,7 @@ def update_sector_analysis(n_clicks, n_intervals):
             xaxis_title="Sector",
             yaxis_title="Sector",
             template="plotly_white",
-            margin=dict(t=50, b=50, l=50, r=50),
-            height=500   # Increased height
+            margin=dict(t=50, b=50, l=50, r=50)
         )
     else:
         one_year_heatmap = go.Figure()
