@@ -26,14 +26,11 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
     end_dt = pd.to_datetime(end_date)
     # Increase end date by one day to include the final day
     end_dt += pd.Timedelta(days=1)
-
-    start_dt = start_dt.strftime('%Y-%m-%d')
-    end_dt = end_dt.strftime('%Y-%m-%d')
     
     data = yf.download(
         ticker, 
-        start=start_dt, 
-        end=end_dt, 
+        start=start_dt.strftime('%Y-%m-%d'), 
+        end=end_dt.strftime('%Y-%m-%d'), 
         interval=interval,
         prepost=True  # Fetch both pre and post market data
     )
@@ -43,6 +40,9 @@ def fetch_stock_data(ticker, start_date, end_date, interval='1d'):
         # Rename 'Datetime' to 'Date' for consistency
         if 'Datetime' in data.columns:
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
+        
+        # Convert the 'Date' column to a datetime object
+        data['Date'] = pd.to_datetime(data['Date'])
     return data
 
 def add_moving_average(df, window, col_name_prefix="MA"):
@@ -200,7 +200,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         xaxis_format = '%H:%M'  # Only time displayed
         xaxis_title = 'Time'
     else:
-        interval = '1d'
+        interval = '5m'
         xaxis_format = '%Y-%m-%d'
         xaxis_title = 'Date'
 
@@ -228,7 +228,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
 
         # Get the current time and current stock price from the latest data point
         current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
-        current_price = float(df['Close'].iloc[-1]) # force format.
+        current_price = float(df['Close'].iloc[-1]) # force format for render.com deployment.
         
         color = colors[i % len(colors)]
         price_trace = go.Scatter(
