@@ -228,7 +228,7 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
 
         # Get the current time and current stock price from the latest data point
         current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
-        current_price = df['Close'].iloc[-1]
+        current_price = float(df['Close'].iloc[-1]) # force format.
         
         color = colors[i % len(colors)]
         price_trace = go.Scatter(
