@@ -232,22 +232,22 @@ def update_dashboard(n_clicks, n_intervals, tickers, start_date, end_date, short
         
         color = colors[i % len(colors)]
         price_trace = go.Scatter(
-            x=df[date_col], 
-            y=df['Close'], 
+            x=df[date_col],
+            y=df['Close'].astype(float),
             mode='lines',
             name=f"{ticker} Price",
             line=dict(color=color)
         )
         short_ma_trace = go.Scatter(
             x=df[date_col],
-            y=df[f"Short_MA_{short_window}"],
+            y=df[f"Short_MA_{short_window}"].astype(float),
             mode='lines',
             name=f"{ticker} Short MA ({short_window})",
             line=dict(color=color, dash='dash')
         )
         long_ma_trace = go.Scatter(
             x=df[date_col],
-            y=df[f"Long_MA_{long_window}"],
+            y=df[f"Long_MA_{long_window}"].astype(float),
             mode='lines',
             name=f"{ticker} Long MA ({long_window})",
             line=dict(color=color, dash='dot')
