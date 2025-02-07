@@ -9,6 +9,7 @@ import yfinance as yf
 import datetime
 import pytz
 import dash_daq as daq
+from dateutil.relativedelta import relativedelta
 
 
 app = dash.Dash(__name__)
@@ -197,7 +198,7 @@ app.layout = html.Div(
                                 dcc.DatePickerRange(
                                     id='date-range',
                                     min_date_allowed=datetime.date(2000, 1, 1),
-                                    max_date_allowed=datetime.datetime.now(eastern_tz).date(),
+                                    max_date_allowed=datetime.datetime.now(eastern_tz).date() + relativedelta(days=1),
                                     start_date=datetime.datetime.now(eastern_tz).date(),
                                     end_date=datetime.datetime.now(eastern_tz).date(),
                                     style={'width': '100%'}
@@ -608,6 +609,8 @@ def update_dashboard(n_clicks, n_intervals, prepost, chart_type,
 
             df = add_moving_average(df, s_window, "Short_MA")
             df = add_moving_average(df, l_window, "Long_MA")
+            print(df.head())
+            print(df['Volume'].dtype)
 
             if prepost:
                 rangebreaks = [
@@ -622,7 +625,7 @@ def update_dashboard(n_clicks, n_intervals, prepost, chart_type,
 
             current_time = datetime.datetime.now(eastern_tz).strftime('%Y-%m-%d %H:%M:%S')
             current_price = df['Close'].iloc[-1]
-            
+
             # ---------------------------
             # Build the primary chart(s)
             # ---------------------------
@@ -871,7 +874,7 @@ def update_sector_analysis(n_clicks, n_intervals):
                 quarter_return[sector] = 0.0
             
             # Week range: from 1wk data.
-            hist_1wk = ticker.history(period="1wk", interval="1d")
+            hist_1wk = ticker.history(period="5d", interval="1d")
             if not hist_1wk.empty:
                 low_val = hist_1wk["Low"].min()
                 high_val = hist_1wk["High"].max()
@@ -979,8 +982,10 @@ def update_sector_analysis(n_clicks, n_intervals):
     # Build correlation heat maps.
     # 1 Month correlation heat map.
     one_month_df = pd.DataFrame({sector: series for sector, series in one_month_close.items() if not series.empty})
+
     if not one_month_df.empty:
         one_month_corr = one_month_df.corr()
+
         one_month_heatmap = go.Figure(data=go.Heatmap(
             z=one_month_corr.values,
             x=one_month_corr.columns,
